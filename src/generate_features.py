@@ -59,8 +59,45 @@ def build_features(df):
     df['roas'] = df.apply(
         lambda r: r['revenue'] / r['spend'] if r['spend'] > 0 else 0, axis=1
     )
-    # Sort by campaign and date
+    # Sort by campaign and date — required before rolling calculations
     df = df.sort_values(['channel', 'campaign_name', 'date']).reset_index(drop=True)
+
+    # --- Rolling features (per campaign) ---
+    grp = df.groupby(['channel', 'campaign_name'])
+
+    df['revenue_7d_avg'] = grp['revenue'].transform(
+        lambda x: x.rolling(7, min_periods=1).mean()
+    )
+    df['revenue_14d_avg'] = grp['revenue'].transform(
+        lambda x: x.rolling(14, min_periods=1).mean()
+    )
+    df['spend_7d_avg'] = grp['spend'].transform(
+        lambda x: x.rolling(7, min_periods=1).mean()
+    )
+    df['roas_7d_avg'] = grp['roas'].transform(
+        lambda x: x.rolling(7, min_periods=1).mean()
+    )
+    df['spend_lag_1d'] = grp['spend'].transform(
+        lambda x: x.shift(1)
+    ).fillna(0)
+
+    # --- Seasonality features ---
+    df['day_of_week'] = df['date'].dt.dayofweek      # 0=Monday, 6=Sunday
+    df['week_of_year'] = df['date'].dt.isocalendar().week.astype(int)
+    df['month'] = df['date'].dt.month
+
+    # --- Campaign age (days since first appearance) ---
+    first_date = grp['date'].transform('min')
+    df['campaign_age_days'] = (df['date'] - first_date).dt.days
+
+    # --- Historical average ROAS per campaign (expanding mean) ---
+    df['historical_roas_avg'] = grp['roas'].transform(
+        lambda x: x.expanding().mean()
+    )
+
+    # --- Campaign history length (total rows available) ---
+    df['campaign_history_length'] = grp['date'].transform('count')
+
     return df
 
 def main():
