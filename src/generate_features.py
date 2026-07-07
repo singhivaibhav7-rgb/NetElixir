@@ -97,6 +97,8 @@ def build_features(df):
 
     # --- Campaign history length (total rows available) ---
     df['campaign_history_length'] = grp['date'].transform('count')
+    # Drop physically impossible rows
+    df = df[~((df['spend'] == 0) & (df['revenue'] > 0))].reset_index(drop=True)
 
     return df
 

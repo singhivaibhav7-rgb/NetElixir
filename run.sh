@@ -18,7 +18,10 @@ echo "Output path: $OUTPUT_PATH"
 python src/generate_features.py \
     --data-dir "$DATA_DIR" \
     --out features.parquet
-
+# Step 1.5: Validate campaign consistency
+python src/validate.py \
+    --features features.parquet \
+    --out output/validation_report.json
 # Step 2: Load model and produce predictions
 python src/predict.py \
     --features features.parquet \
